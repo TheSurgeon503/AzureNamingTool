@@ -8,9 +8,16 @@ on:
     branches:
       - main
   workflow_dispatch:
+  
+defaults:
+  run:
+    working-directory: src
 
 jobs:
   build:
+    defaults:
+      run:
+        working-directory: src
     runs-on: ubuntu-latest
 
     steps:
@@ -19,8 +26,14 @@ jobs:
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '8.x'
-          include-prerelease: true
+          dotnet-version: '8.0.x'
+
+      - name: Cache
+        uses: actions/cache@v4.0.2
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: ${{ runner.os }}-nuget-
 
       - name: Build with dotnet
         run: dotnet build --configuration Release
@@ -35,13 +48,16 @@ jobs:
           path: ${{env.DOTNET_ROOT}}/myapp
 
   deploy:
-    runs-on: ubuntu-latest
-    needs: build
+    defaults:
+      run:
+        working-directory: ready/AzNamingTool
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
+      id-token: write
+    runs-on: ubuntu-latest
 
     steps:
       - name: Download artifact from build job
@@ -60,7 +76,6 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
-          app-name: 'app-ant-shd-usw2-1-ymivbqdw'
-          slot-name: 'Production'
+          app-name: app-ant-shd-usw2-1-ymivbqdw
+          slot-name: Production
           package: .
-          
